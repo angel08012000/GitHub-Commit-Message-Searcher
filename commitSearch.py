@@ -144,7 +144,7 @@ def get_tf_score(document):
     
     term_in_corpus = tf_score #這時的 tf_score 還是記次數的
     tf_score = {key: tf_score[key]/termnum_in_document for key in term_in_document}
-    
+
     
     return {"tf_score": tf_score, 
             "termnum_in_corpus": termnum_in_corpus, 
@@ -161,25 +161,17 @@ def merge_dict(d1, d2):
     
 # 算 tf分數，並把所需的東西都轉成要存進 db 的格式
 def get_dbformat_data(request):
-    
-    #DB 已經有的 data
-    db = firestore.client()
-    doc_ref = db.collection('commitData').document(f'{request["userName"]},{request["repositoryName"]}')
-    already_exist = doc_ref.get().to_dict() #得到結果後，轉成 dict
-    print(f"firebase結果: {already_exist}")
 
     #要存到 DB 的 data
     data = {"userName" : request["userName"],
             "repositoryName" : request["repositoryName"],
-            "corpusTerm" : {} if already_exist==None else already_exist["corpusTerm"], #統計所有corpus中的term有哪些、出現幾次
-            "corpusTermNum" : 0 if already_exist==None else already_exist["corpusTermNum"], #統計所有corpus中term的數量
-            "commitHistory" : [] if already_exist==None else already_exist["commitHistory"]}
+            "corpusTerm" : {},
+            "corpusTermNum" : 0,
+            "commitHistory" : []}
     
     #計算 tf 分數
     #print("---------- tf -----------")
     for commit in request["commitHistory"]:
-        if already_exist!=None and is_sha_exist(already_exist["commitHistory"], commit["sha"]):
-            continue
         result = get_tf_score(commit["document"])
         
         temp = {"sha": commit["sha"],
