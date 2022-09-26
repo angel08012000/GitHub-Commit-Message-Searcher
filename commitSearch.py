@@ -216,7 +216,7 @@ def get_word_vector_and_rank(request):
     
     pro_info = get_project_info(request["range"], r)
     if pro_info == None:
-        return "repo range error (not in same project)"
+        return "repo range error (not in same project or database is empty)"
     
     #先算跟 corpus 相關的
     search_data = get_tf_score(request["keywords"])
@@ -254,7 +254,10 @@ def get_word_vector_and_rank(request):
     return consine_rank_to_rank(cosine_rank, request["quantity"])
 
 def get_project_info(repo_list, r):
-    source = json.loads(r.get("projectData"))
+    data = r.get("projectData")
+    if data == None:
+        return None
+    source = json.loads(data)
     source = source["projects"]
     
     for pro in source:
