@@ -197,10 +197,10 @@ def create_to_db(key, value, r):
     return "ok"
 
 def get_project(r):
-    project_data = json.loads(r.get('projectData'))
+    project_data = r.get('projectData')
     
     if project_data != None:
-        return project_data
+        return json.loads(project_data)
     return {"projects":[],
             "num" : 0}
 
@@ -294,7 +294,15 @@ def get_project_info(repo_list, r):
 
 # -------------- [Read] 輸入關鍵字，回傳排行 - END -------------- #
 
-
+def get_all_redis_data():
+    data = []
+    try:
+        r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+        for element in r.keys():
+            data.append({element: json.loads(r.get(element))})
+        return data
+    except:
+        return "can't get redis data"
 
 # -------------- [Delete] 刪除 repository - START -------------- #
 
@@ -306,6 +314,7 @@ def delete_repository(request):
         return "deleting completed"
     except:
         return "deleting failed"
+
 
 def delete_all_data():
     try:
@@ -341,6 +350,11 @@ def search_commit_api():
     req = request.get_json()
 
     return jsonify(get_word_vector_and_rank(req))
+
+@app.route("/getredis", methods=['GET'])
+def get_redis_data():
+    
+    return jsonify(get_all_redis_data())
 
 @app.route("/delete", methods=['DELETE'])
 def delete_repository_api():
