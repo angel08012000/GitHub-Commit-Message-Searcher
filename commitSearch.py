@@ -298,47 +298,25 @@ def get_project_info(repo_list, r):
 
 # -------------- [Delete] 刪除 repository - START -------------- #
 
-# 用 path 可以，用 .collection.document 就不行
 def delete_repository(request):
-    path = f'commitData/{request["userName"]},{request["repositoryName"]}'
-    db = firestore.client()
-    doc_ref = db.document(path)
-    doc_ref.delete()
-    return {"message" : "Ok"}
+    try:
+        r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+        for repo in request["range"]:
+            r.delete(repo)
+        return "deleting completed"
+    except:
+        return "deleting failed"
+
+def delete_all_data():
+    try:
+        r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+        for element in r.keys():
+            r.delete(element)
+        return "deleting completed"
+    except:
+        return "deleting failed"
 
 # -------------- [Delete] 刪除 repository - END -------------- #
-
-
-''' main '''
-
-#user_name = input("請輸入 user name: ") #sheng-kai-wang, botfront
-#repository_name = input("請輸入 repository name: ") #TABot, rasa-webchat
-#search_keyword = input("請輸入 commit 關鍵字: ")
-user_name = "sheng-kai-wang"
-repository_name = "TABot"
-
-#commit_history = [{"sha":0, "message": search_keyword}]
-
-'''
-commit_history += [{"sha":1, "message":"[fixed] @Service error"},
-                 {"sha":2, "message":"fixed sheet update bug"},
-                 {"sha":3, "message":"fix log config"}]
-
-'''
-create_request = {
-                "userName" : "使用者名稱",
-        		"repositoryName" : "專案名稱",
-                "commitHistory": [
-                 {"sha":1, "document":"hello everyone, 我的名字是阿慈"},
-                 {"sha":2, "document":"我的名字是恩寶"},
-                 {"sha":3, "document":"hello"},
-                 {"sha":4, "document":"今天天氣真好"}]}
-
-#commit_history = get_commit_history(user_name, repository_name)
-#print("------------------ commit 紀錄 ------------------")
-#print_commit_history(commit_history)
-
-
 
 app = Flask(__name__)
 
@@ -369,6 +347,11 @@ def delete_repository_api():
     req = request.get_json()
     
     return jsonify(delete_repository(req))
+
+@app.route("/delete/all", methods=['DELETE'])
+def delete_all_data_api():
+    
+    return jsonify(delete_all_data())
     
 
 # 如果把 app.py 當成主程式的話
