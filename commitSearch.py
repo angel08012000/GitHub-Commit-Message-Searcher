@@ -84,29 +84,6 @@ def pre_process(sentence):
     
     return word
 
-# 拿到 commit 紀錄，變成 create API request 的格式（自己測試用）
-def get_commit_history(user_name, repository_name):
-    
-    get_commit_url = f"https://api.github.com/repos/{user_name}/{repository_name}/commits"
-    #get_commit_url = f"https://api.github.com/repos/sheng-kai-wang/TABot/commits"
-    
-    # 使用 GET 方式呼叫 GitHub API
-    r = requests.get(get_commit_url)
-    if r.status_code!=requests.codes.ok:
-        sys.exit(f"{r.status_code}獲取 API 失敗！")
-        
-    response = json.loads(r.text) # str to json
-
-    # 把我需要的東西存下來
-    request = {"userName": user_name, "repositoryName": repository_name, "commitHistory": []}
-    for commit in response:
-        temp = {}
-        temp["sha"] = commit["sha"]
-        temp["document"] = commit["commit"]["message"]
-        request["commitHistory"].append(temp)
-    
-    return request
-
 # 印出 commit 紀錄，參數為 create API 的 request
 def print_commit_history(request):
     for commit in request["commitHistory"]:
@@ -328,15 +305,6 @@ def delete_all_data():
 # -------------- [Delete] 刪除 repository - END -------------- #
 
 app = Flask(__name__)
-
-@app.route("/get_commit", methods=['POST'])
-def get_commit_data_api():
-    req = request.get_json()
-    
-    commit_history = get_commit_history(req["userName"], req["repositoryName"])
-    print_commit_history(commit_history)
-    
-    return jsonify(commit_history)
 
 @app.route("/create", methods=['POST'])
 def create_commit_data_api():
