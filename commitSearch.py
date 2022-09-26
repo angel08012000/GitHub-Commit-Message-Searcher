@@ -219,45 +219,53 @@ def get_cosine_rank(search_vector, commit_data):
     
     for commit in commit_data:
         temp = {}
-        temp["sha"] = commit["sha"]
+        temp["message"] = commit["message"]
         temp["cosine"] = dot(search_vector, commit["wordVector"])/(norm(search_vector)*norm(commit["wordVector"]))
         cosine_rank.append(temp)
     cosine_rank = sorted(cosine_rank, key=lambda d: d['cosine'], reverse=True)
     return cosine_rank
 
 # cosine rank -> rank（把不重要的刪掉）
-def consine_rank_to_rank(cosine_rank):
+def consine_rank_to_rank(cosine_rank, num):
     response = {"rank": []}
     
     for commit in cosine_rank:
-        response["rank"].append(commit["sha"])
+        response["rank"].append(commit["message"])
+        
+    response["rank"] = response["rank"][:int(num) if (num!="" and int(num)<len(response["rank"])) else len(response["rank"])]
         
     return response
 
 # 重新計算 corpus 相關資料，並計算 word vector
 def get_word_vector_and_rank(request):
-    db = firestore.client()
-    doc_ref = db.collection('commitData').document(f'{request["userName"]},{request["repositoryName"]}')
-    commit_data = doc_ref.get().to_dict() #得到結果後，轉成 dict
+    r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+    
+    pro_info = get_project_info(request["range"], r)
+    if pro_info == None:
+        return "repo range error (not in same project)"
     
     #先算跟 corpus 相關的
-    search_data = get_tf_score(request["search"])
-    corpus_term_temp = merge_dict(commit_data["corpusTerm"], search_data["term_in_corpus"])
-    corpus_termnum_temp = commit_data["corpusTermNum"] + search_data["termnum_in_corpus"]
+    search_data = get_tf_score(request["keywords"])
+    corpus_term_temp = merge_dict(pro_info["corpusTerm"], search_data["term_in_corpus"])
+    corpus_termnum_temp = pro_info["corpusTermNum"] + search_data["termnum_in_corpus"]
     # search_data["tf_score"] tf的分數
     
     #計算詞向量(tf-iwf)
     #print("----------- 詞向量 ----------")
     # 計算詞向量(key為sha值，value為詞向量)
-    
-    for commit in commit_data["commitHistory"]:
-        commit["wordVector"] = []
-        for term in corpus_term_temp:
-            #如果有這個字就加上他的 tf-iwf
-            if term in commit["tfScore"]:
-                commit["wordVector"].append(commit["tfScore"][term]*np.log10(corpus_termnum_temp/corpus_term_temp[term]))
-            else:
-                commit["wordVector"].append(0)
+    history = []
+    for repo in request["range"]:
+        repo_mes = json.loads(r.get(repo))["documents"]
+        
+        for commit in repo_mes:
+            commit["wordVector"] = []
+            for term in corpus_term_temp:
+                #如果有這個字就加上他的 tf-iwf
+                if term in commit["tfScore"]:
+                    commit["wordVector"].append(commit["tfScore"][term]*np.log10(corpus_termnum_temp/corpus_term_temp[term]))
+                else:
+                    commit["wordVector"].append(0)
+            history.append(commit)
     
     search_data["wordVector"] = []
     for term in corpus_term_temp:
@@ -267,9 +275,25 @@ def get_word_vector_and_rank(request):
             search_data["wordVector"].append(0)
     
     #比較 cosine 相似度
-    cosine_rank = get_cosine_rank(search_data["wordVector"], commit_data["commitHistory"])
+    cosine_rank = get_cosine_rank(search_data["wordVector"], history)
     
-    return consine_rank_to_rank(cosine_rank)
+    return consine_rank_to_rank(cosine_rank, request["quantity"])
+
+def get_project_info(repo_list, r):
+    source = json.loads(r.get("projectData"))
+    source = source["projects"]
+    
+    for pro in source:
+        match = 0
+        for repo in repo_list:
+            if repo in pro["all_repo"]:
+                match+=1
+            else:
+                break
+        if match == len(repo_list):
+            return {"corpusTerm" : pro["corpusTerm"],
+                    "corpusTermNum" : pro["corpusTermNum"]}
+    return None
 
 # -------------- [Read] 輸入關鍵字，回傳排行 - END -------------- #
 
@@ -364,10 +388,6 @@ def create_commit_data_api():
 @app.route("/search", methods=['POST'])
 def search_commit_api():
     req = request.get_json()
-    
-    if not firebase_admin._apps:
-        cred = credentials.Certificate(cloud_firebase_key_path)
-        app = firebase_admin.initialize_app(cred)
 
     return jsonify(get_word_vector_and_rank(req))
 
