@@ -127,6 +127,3 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
-# 忽略 cloud firebase 的 金鑰.json
-tabot-1111-se-firebase-adminsdk-jz0lq-5459cd0605.json
