@@ -35,9 +35,6 @@ from nltk.corpus import stopwords
 #nltk.download('stopwords')
 
 # 資料庫
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
 import redis
 
 # flask
@@ -341,37 +338,13 @@ create_request = {
 #print("------------------ commit 紀錄 ------------------")
 #print_commit_history(commit_history)
 
-'''
-# create
-commit_data = get_dbformat_data(commit_history)
-#print(commit_data)
-create_to_db(commit_data)
-'''
-'''
-# read
-request = {"userName": "使用者名稱",
-           "repositoryName": "專案名稱",
-           "search": "hello 我的名字是 123"}
-print(get_word_vector_and_rank(request))
-'''
-'''
-# delete
-request = {"userName": "使用者名稱",
-           "repositoryName": "專案名稱"}
-delete_repository(request)
-'''
 
-cloud_firebase_key_path = "tabot-1111-se-firebase-adminsdk-jz0lq-5459cd0605.json"
 
 app = Flask(__name__)
 
 @app.route("/get_commit", methods=['POST'])
 def get_commit_data_api():
     req = request.get_json()
-    
-    if not firebase_admin._apps:
-        cred = credentials.Certificate(cloud_firebase_key_path)
-        app = firebase_admin.initialize_app(cred)
     
     commit_history = get_commit_history(req["userName"], req["repositoryName"])
     print_commit_history(commit_history)
@@ -394,10 +367,6 @@ def search_commit_api():
 @app.route("/delete", methods=['DELETE'])
 def delete_repository_api():
     req = request.get_json()
-    
-    if not firebase_admin._apps:
-        cred = credentials.Certificate(cloud_firebase_key_path)
-        app = firebase_admin.initialize_app(cred)
     
     return jsonify(delete_repository(req))
     
