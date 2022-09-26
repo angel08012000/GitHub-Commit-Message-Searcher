@@ -38,18 +38,12 @@ from nltk.corpus import stopwords
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
+import redis
 
 # flask
 from flask import Flask, request, jsonify
 
 # -------------- [Create] 建立詞向量，並儲存至 DB - START -------------- #
-
-# 檢查 sha 是否已經存在
-def is_sha_exist(exist_data, sha):
-    for data in exist_data:
-        if sha == data["sha"]:
-            return True
-    return False
 
 # 拿到單字詞性
 def get_word_pos(tag):
@@ -146,7 +140,8 @@ def get_tf_score(document):
     tf_score = {key: tf_score[key]/termnum_in_document for key in term_in_document}
 
     
-    return {"tf_score": tf_score, 
+    return {"message": document,
+            "tf_score": tf_score,
             "termnum_in_corpus": termnum_in_corpus, 
             "term_in_corpus": term_in_corpus}
 
@@ -161,37 +156,56 @@ def merge_dict(d1, d2):
     
 # 算 tf分數，並把所需的東西都轉成要存進 db 的格式
 def get_dbformat_data(request):
-
-    #要存到 DB 的 data
-    data = {"userName" : request["userName"],
-            "repositoryName" : request["repositoryName"],
-            "corpusTerm" : {},
-            "corpusTermNum" : 0,
-            "commitHistory" : []}
+    r = redis.Redis(host='localhost', port=6379, decode_responses=True) 
     
-    #計算 tf 分數
-    #print("---------- tf -----------")
-    for commit in request["commitHistory"]:
-        result = get_tf_score(commit["document"])
-        
-        temp = {"sha": commit["sha"],
-                "tfScore": result["tf_score"] } #一開始記出現次數，後來記 tf分數
-        data["commitHistory"].append(temp)
-        
-        data["corpusTermNum"] += result["termnum_in_corpus"]
-        data["corpusTerm"] = merge_dict(data["corpusTerm"], result["term_in_corpus"])
+    project_data = get_project(r)
+    project_data['num'] += 1
+    pro_info = {"projectId" : project_data['num'],
+                "all_repo" : [],
+                "corpusTerm" : {},
+                "corpusTermNum" : 0}
     
-    return data
+    for repo in request["all_document"]:
+        pro_info["all_repo"].append(repo)
+        #要存到 DB 的 data
+        data = {"documents" : [],
+                "project" : project_data['num'] }
+        
+        #計算 tf 分數
+        for commit in request["all_document"][repo]:
+            result = get_tf_score(commit)
+            
+            temp = {"message": result["message"],
+                    "tfScore": result["tf_score"] } #一開始記出現次數，後來記 tf分數
+            data["documents"].append(temp)
+            
+            pro_info["corpusTermNum"] += result["termnum_in_corpus"]
+            pro_info["corpusTerm"] = merge_dict(pro_info["corpusTerm"], result["term_in_corpus"])
+        res = create_to_db(repo, data, r)
+        if res!="ok":
+            return "indexing failed"
+        
+    project_data["projects"].append(pro_info)
+    create_to_db("projectData", project_data, r)
+    return "indexing completed"
 
 # 把計算完的資料存到 database 裡
-def create_to_db(data):
-    db = firestore.client()
-    doc_ref = db.collection('commitData').document(f'{data["userName"]},{data["repositoryName"]}')
-    del data['userName']
-    del data['repositoryName']
-    doc_ref.set(data)
+def create_to_db(key, value, r):
+    try:
+        json_data = json.dumps(value)
+        r.set(key, json_data)
+        #json.loads(r.get(key))
+    except:
+        return "failed"
+    return "ok"
+
+def get_project(r):
+    project_data = json.loads(r.get('projectData'))
     
-    return {"message": "Ok"}
+    if project_data != None:
+        return project_data
+    return {"projects":[],
+            "num" : 0}
 
 # -------------- [Create] 建立詞向量，並儲存至 DB - END -------------- #
      
@@ -343,13 +357,7 @@ def get_commit_data_api():
 @app.route("/create", methods=['POST'])
 def create_commit_data_api():
     req = request.get_json()
-    
-    if not firebase_admin._apps:
-        cred = credentials.Certificate(cloud_firebase_key_path)
-        app = firebase_admin.initialize_app(cred)
-        
-    commit_data = get_dbformat_data(req)
-    res = create_to_db(commit_data)
+    res = get_dbformat_data(req)
     
     return jsonify(res)
 
