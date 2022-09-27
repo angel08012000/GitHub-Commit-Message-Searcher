@@ -8,7 +8,6 @@ Created on Mon Sep 12 16:16:35 2022
 
 # 引入模組
 import requests
-import sys
 import json
 
 import numpy as np
@@ -20,19 +19,19 @@ from numpy.linalg import norm
 
 # 英文斷詞＆詞性還原
 import nltk
-#nltk.download('averaged_perceptron_tagger')
-#nltk.download('wordnet')
-#nltk.download('omw-1.4')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('wordnet')
+nltk.download('omw-1.4')
+nltk.download('punkt')
 from nltk import word_tokenize, pos_tag
 from nltk.corpus import wordnet
 from nltk.stem import WordNetLemmatizer
 
 # 中文斷詞
 import monpa
-
 # 停用詞
 from nltk.corpus import stopwords
-#nltk.download('stopwords')
+nltk.download('stopwords')
 
 # 資料庫
 import redis
@@ -258,6 +257,8 @@ def get_project_info(repo_list, r):
     if data == None:
         return None
     source = json.loads(data)
+    if source["projects"] == None:
+        return None
     source = source["projects"]
     
     for pro in source:
@@ -286,11 +287,29 @@ def get_all_redis_data():
 
 # -------------- [Delete] 刪除 repository - START -------------- #
 
-def delete_repository(request):
+def delete_project(request):
+    
     try:
+        delete = False
         r = redis.Redis(host='localhost', port=6379, decode_responses=True)
-        for repo in request["range"]:
-            r.delete(repo)
+        pros = r.get("projectData")
+        if pros == None:
+            return "project data is empty!"
+        value = json.loads(pros)
+        
+        for pro in value["projects"]:
+            if pro["projectId"] in request["range"]:
+                for repo in pro["all_repo"]:
+                    r.delete(repo)
+                value["projects"] = value["projects"].remove(pro)
+                delete = True
+                
+        
+        if delete==False:
+            return "some project id don't exit"
+        json_data = json.dumps(value)
+        r.set("projectData", json_data)
+        
         return "deleting completed"
     except:
         return "deleting failed"
@@ -331,7 +350,7 @@ def get_redis_data():
 def delete_repository_api():
     req = request.get_json()
     
-    return jsonify(delete_repository(req))
+    return jsonify(delete_project(req))
 
 @app.route("/delete/all", methods=['DELETE'])
 def delete_all_data_api():
