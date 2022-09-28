@@ -146,9 +146,10 @@ def get_dbformat_data(request):
         
         #計算 tf 分數
         for commit in request["all_document"][repo]:
-            result = get_tf_score(commit)
+            result = get_tf_score(commit["message"])
             
-            temp = {"message": result["message"],
+            temp = {"id": commit["id"],
+                    "message": result["message"],
                     "tfScore": result["tf_score"] } #一開始記出現次數，後來記 tf分數
             data["documents"].append(temp)
             
@@ -158,7 +159,10 @@ def get_dbformat_data(request):
         if res!="ok":
             return "indexing failed"
         
-    project_data["projects"].append(pro_info)
+    if project_data["projects"] == None:
+        project_data["projects"]=[pro_info]
+    else:
+        project_data["projects"].append(pro_info)
     create_to_db("projectData", project_data, r)
     return "indexing completed"
 
@@ -192,6 +196,7 @@ def get_cosine_rank(search_vector, commit_data):
     
     for commit in commit_data:
         temp = {}
+        temp["id"] = commit["id"]
         temp["message"] = commit["message"]
         temp["cosine"] = dot(search_vector, commit["wordVector"])/(norm(search_vector)*norm(commit["wordVector"]))
         cosine_rank.append(temp)
@@ -203,7 +208,10 @@ def consine_rank_to_rank(cosine_rank, num):
     response = {"rank": []}
     
     for commit in cosine_rank:
-        response["rank"].append(commit["message"])
+        temp = {}
+        temp["id"] = commit["id"]
+        temp["message"] = commit["message"]
+        response["rank"].append(temp)
         
     response["rank"] = response["rank"][:int(num) if (num!="" and int(num)<len(response["rank"])) else len(response["rank"])]
         
