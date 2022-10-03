@@ -131,39 +131,37 @@ def merge_dict(d1, d2):
 def get_dbformat_data(request):
     r = redis.Redis(host='localhost', port=6379, decode_responses=True) 
     
-    project_data = get_project(r)
-    project_data['num'] += 1
-    pro_info = {"projectId" : project_data['num'],
-                "all_repo" : [],
-                "corpusTerm" : {},
-                "corpusTermNum" : 0}
+    #project_data = get_project(r)
+    #project_data['num'] += 1
     
-    for repo in request["all_document"]:
-        pro_info["all_repo"].append(repo)
-        #要存到 DB 的 data
-        data = {"documents" : [],
-                "project" : project_data['num'] }
-        
-        #計算 tf 分數
-        for commit in request["all_document"][repo]:
-            result = get_tf_score(commit["message"])
+    
+    for pro in request:
+        pro_info = {"allRepo" : [],
+                    "corpusTerm" : {},
+                    "corpusTermNum" : 0}
+        for repo in request[pro]:
+            pro_info["allRepo"].append(repo)
+            #要存到 DB 的 data
+            data = {"documents" : [],
+                    "project" : pro }
             
-            temp = {"id": commit["id"],
-                    "message": result["message"],
-                    "tfScore": result["tf_score"] } #一開始記出現次數，後來記 tf分數
-            data["documents"].append(temp)
-            
-            pro_info["corpusTermNum"] += result["termnum_in_corpus"]
-            pro_info["corpusTerm"] = merge_dict(pro_info["corpusTerm"], result["term_in_corpus"])
-        res = create_to_db(repo, data, r)
-        if res!="ok":
-            return "indexing failed"
+            #計算 tf 分數
+            for commit in request[pro][repo]:
+                result = get_tf_score(commit["message"])
+                
+                temp = {"id": commit["id"],
+                        "message": result["message"],
+                        "tfScore": result["tf_score"] } #一開始記出現次數，後來記 tf分數
+                data["documents"].append(temp)
+                
+                pro_info["corpusTermNum"] += result["termnum_in_corpus"]
+                pro_info["corpusTerm"] = merge_dict(pro_info["corpusTerm"], result["term_in_corpus"])
+            res = create_to_db(repo, data, r)
+            if res!="ok":
+                return res
+    
+        create_to_db(pro, pro_info, r)
         
-    if project_data["projects"] == None:
-        project_data["projects"]=[pro_info]
-    else:
-        project_data["projects"].append(pro_info)
-    create_to_db("projectData", project_data, r)
     return "indexing completed"
 
 # 把計算完的資料存到 database 裡
@@ -173,7 +171,7 @@ def create_to_db(key, value, r):
         r.set(key, json_data)
         #json.loads(r.get(key))
     except:
-        return "failed"
+        return f"key [{key}] create failed"
     return "ok"
 
 def get_project(r):
@@ -198,6 +196,7 @@ def get_cosine_rank(search_vector, commit_data):
         temp = {}
         temp["id"] = commit["id"]
         temp["message"] = commit["message"]
+        temp["repo"] = commit["repo"]
         temp["cosine"] = dot(search_vector, commit["wordVector"])/(norm(search_vector)*norm(commit["wordVector"]))
         cosine_rank.append(temp)
     cosine_rank = sorted(cosine_rank, key=lambda d: d['cosine'], reverse=True)
@@ -209,6 +208,7 @@ def consine_rank_to_rank(cosine_rank, num):
     
     for commit in cosine_rank:
         temp = {}
+        temp["repo"] = commit["repo"]
         temp["id"] = commit["id"]
         temp["message"] = commit["message"]
         response["rank"].append(temp)
@@ -221,7 +221,7 @@ def consine_rank_to_rank(cosine_rank, num):
 def get_word_vector_and_rank(request):
     r = redis.Redis(host='localhost', port=6379, decode_responses=True)
     
-    pro_info = get_project_info(request["range"], r)
+    pro_info = get_project_info(request["projectName"], request["range"], r)
     if pro_info == None:
         return "repo range error (not in same project or database is empty)"
     
@@ -239,6 +239,7 @@ def get_word_vector_and_rank(request):
         repo_mes = json.loads(r.get(repo))["documents"]
         
         for commit in repo_mes:
+            commit["repo"] = repo
             commit["wordVector"] = []
             for term in corpus_term_temp:
                 #如果有這個字就加上他的 tf-iwf
@@ -260,25 +261,23 @@ def get_word_vector_and_rank(request):
     
     return consine_rank_to_rank(cosine_rank, request["quantity"])
 
-def get_project_info(repo_list, r):
-    data = r.get("projectData")
+def get_project_info(pro_name, repo_list, r):
+    data = r.get(pro_name)
     if data == None:
         return None
     source = json.loads(data)
-    if source["projects"] == None:
+    if source["allRepo"] == None:
         return None
-    source = source["projects"]
     
-    for pro in source:
-        match = 0
-        for repo in repo_list:
-            if repo in pro["all_repo"]:
-                match+=1
-            else:
-                break
-        if match == len(repo_list):
-            return {"corpusTerm" : pro["corpusTerm"],
-                    "corpusTermNum" : pro["corpusTermNum"]}
+    match = 0
+    for repo in repo_list:
+        if repo in source["allRepo"]:
+            match+=1
+        else:
+            break
+    if match == len(repo_list):
+        return {"corpusTerm" : source["corpusTerm"],
+                "corpusTermNum" : source["corpusTermNum"]}
     return None
 
 # -------------- [Read] 輸入關鍵字，回傳排行 - END -------------- #
