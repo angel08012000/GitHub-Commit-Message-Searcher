@@ -1,24 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Sep 12 16:16:35 2022
+Created on Tue Oct 11 00:38:53 2022
 
 @author: cihcih
 """
 
-# 引入模組
-import requests
-import json
-from bs4 import BeautifulSoup
-import time
+from models import crawler
 
-import numpy as np
-#為了算cosine
-from numpy import dot
-from numpy.linalg import norm
+import requests, json
+#from flask import Flask, request, jsonify
 
-# --------------------------------------- #
-
+import redis
 # 英文斷詞＆詞性還原
 import nltk
 nltk.download('averaged_perceptron_tagger')
@@ -35,94 +28,13 @@ import monpa
 from nltk.corpus import stopwords
 nltk.download('stopwords')
 
-# 資料庫
-import redis
+import time
 
-# flask
-from flask import Flask, request, jsonify
-
+import numpy as np
+#為了算cosine
+from numpy import dot
+from numpy.linalg import norm
 import re
-
-
-# -------------- [GET] 拿到 commit 資訊 - START -------------- #
-
-def get_branches(userName, repoName):
-    get_branch_url = f'https://api.github.com/repos/{userName}/{repoName}/branches'
-    
-    # 使用 GET 方式呼叫 GitHub API，拿到所有 branch
-    r = requests.get(get_branch_url)
-    if r.status_code!=requests.codes.ok:
-        return f"{r.status_code}獲取 API 失敗！"
-    response = json.loads(r.text) # str to json
-    
-    branches = []
-    for b in response:
-        if b["name"] not in branches:
-            branches.append(b["name"])
-            
-    if "main" in branches:
-        branches.remove("main")
-        branches.insert(0, "main")
-    return branches
-
-# 拿到 commit 紀錄，變成 create API request 的格式（自己測試用）
-def get_commit_history(request):
-    time_start = time.time() #開始計時
-    
-    commit_data = {} #處理回傳值
-    for pro_name in request: #一個專案
-        print("+--------------------+")
-        print(f"專案名稱: {pro_name}")
-        commit_data[pro_name] = {} #處理回傳值
-        for repo in request[pro_name]: #一個repo
-            branches = get_branches(repo["userName"], repo["repoName"])
-            total = 0
-            flag = True
-            shas = []
-            
-            for branch in branches: #一個branch
-                print(f"現在分支: {branch}")
-                next_page = f'https://github.com/{repo["userName"]}/{repo["repoName"]}/commits/{branch}'
-                temp = []
-                flag = True
-                print("+----------+")
-                while flag:
-                    response = requests.get(next_page)
-                    soup = BeautifulSoup(response.text, "html.parser")
-                    commit = soup.find_all("div", class_="flex-auto min-width-0 js-details-container Details")
-                    for c in commit:
-                        summary = c.find_all("a", class_="Link--primary text-bold js-navigation-open markdown-title")[-1]
-                        sha = summary.get("href").split('/')[-1]
-                        if sha in shas:
-                            continue
-                        shas.append(sha)
-                        detail = c.find_all("pre", class_="text-small ws-pre-wrap")
-                        commit_text = summary.getText() + ("" if detail==[] else detail[0].getText())
-                        temp.append({"id": sha, "message": commit_text})
-                        print(sha)
-                        print(commit_text)
-                        print("+----------+")
-                        total += 1
-                    tag = soup.find_all('a', {'class':'btn btn-outline BtnGroup-item','rel': 'nofollow'})
-                    if tag==[]: #如果commit只有1頁
-                        flag = False
-                        continue
-                    tag = tag[-1]
-                    next_page = tag.get('href')
-                    print(f"下一頁: {next_page}")
-                    
-                    if next_page == None or tag.getText()!="Older":
-                        flag = False
-                
-                if temp != []:
-                    commit_data[pro_name][f'{repo["userName"]},{repo["repoName"]}:{branch}'] = temp #處理回傳值
-            print(f"總共有{total}筆 commit")
-    time_end = time.time()    #結束計時
-
-    print(f"花費時間: {time_end - time_start}秒")
-    return commit_data
-    
-# -------------- [GET] 拿到 commit 資訊 - END -------------- #
 
 # -------------- [Create] 建立詞向量，並儲存至 DB - START -------------- #
 
@@ -272,7 +184,6 @@ def get_project(r):
             "num" : 0}
 
 # -------------- [Create] 建立詞向量，並儲存至 DB - END -------------- #
-     
 
 
 # -------------- [Read] 輸入關鍵字，回傳排行 - START -------------- #
@@ -317,7 +228,7 @@ def get_all_range_branch(branch_range):
         if b.split(":")[-1] == "*":
             branch_range.remove(b)
             info = re.split(',|:', b)
-            result = get_branches(info[0], info[1])
+            result = crawler.get_branches(info[0], info[1])
             for r in result:
                 branch_range.append(f"{info[0]},{info[1]}:{r}")
     return branch_range
@@ -333,7 +244,7 @@ def get_word_vector_and_rank(request):
     
     pro_info = get_project_info(request["projectName"], request["range"], r)
     if pro_info == None:
-        return "repo range error (not in same project or database is empty)"
+        return {"status": "search failed", "rank": {}}
     
     #先算跟 corpus 相關的
     search_data = get_tf_score(request["keywords"])
@@ -371,7 +282,7 @@ def get_word_vector_and_rank(request):
     
     time_end = time.time() #結束計時
     print(f"花費時間: {time_end - time_start}秒")
-    return consine_rank_to_rank(cosine_rank, request["quantity"])
+    return {"status": "search completed", "rank": consine_rank_to_rank(cosine_rank, request["quantity"])}
 
 def get_project_info(pro_name, repo_list, r):
     data = r.get(pro_name)
@@ -394,6 +305,11 @@ def get_project_info(pro_name, repo_list, r):
 
 # -------------- [Read] 輸入關鍵字，回傳排行 - END -------------- #
 
+
+
+
+# -------------- [Read] 讀取 DB - START -------------- #
+
 def get_all_redis_data():
     data = []
     try:
@@ -403,7 +319,9 @@ def get_all_redis_data():
         return data
     except:
         return "can't get redis data"
-
+    
+# -------------- [Read] 讀取 DB - END -------------- #
+    
 # -------------- [Delete] 刪除 repository - START -------------- #
 
 def delete_project(request):
@@ -444,51 +362,5 @@ def delete_all_data():
         return {"status": "deleting failed"}
 
 # -------------- [Delete] 刪除 repository - END -------------- #
-
-app = Flask(__name__)
-
-@app.route("/commits", methods=['POST'])
-def get_commit_api():
-    req = request.get_json()
-    res = get_commit_history(req)
     
-    return jsonify(res)
-
-@app.route("/create", methods=['POST'])
-def create_commit_data_api():
-    req = request.get_json()
-    res = get_dbformat_data(req)
     
-    return jsonify(res)
-
-@app.route("/create_commits", methods=['POST'])
-def get_commit_and_create_api():
-    req = request.get_json()
-    temp = get_commit_history(req)
-    res = get_dbformat_data(temp)
-    
-    return jsonify(res)
-
-@app.route("/search", methods=['POST'])
-def search_commit_api():
-    req = request.get_json()
-
-    return jsonify(get_word_vector_and_rank(req))
-
-@app.route("/getredis", methods=['GET'])
-def get_redis_data():
-    
-    return jsonify(get_all_redis_data())
-
-@app.route("/delete/all", methods=['DELETE'])
-def delete_all_data_api():
-    
-    return jsonify(delete_all_data())
-    
-
-# 如果把 app.py 當成主程式的話
-# 就啟動伺服器 //app.run()
-if __name__ == "__main__":
-	# debug=True 代表你即使改了程式碼，也不用 ctrl+C 關掉重開
-	app.run(host='0.0.0.0', port=8082, debug=True)
-
