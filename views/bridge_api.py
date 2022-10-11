@@ -18,6 +18,6 @@ bridge_api=Blueprint('bridge_api', __name__)
 def get_commit_and_create_api():
     req = request.get_json()
     temp = crawler.get_commit_history(req)
-    res = database.get_dbformat_data(temp)
+    res = database.get_dbformat_data(temp["data"])
     
     return jsonify(res)
