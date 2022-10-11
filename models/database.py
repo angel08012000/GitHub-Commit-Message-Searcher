@@ -204,7 +204,7 @@ def get_cosine_rank(search_vector, commit_data):
 
 # cosine rank -> rank（把不重要的刪掉）
 def consine_rank_to_rank(cosine_rank, num):
-    response = {"rank": []}
+    response = []
     
     for commit in cosine_rank:
         temp = {}
@@ -213,11 +213,11 @@ def consine_rank_to_rank(cosine_rank, num):
         temp["message"] = commit["message"]
         #temp["cosine"] = commit["cosine"]
         if commit["cosine"] != 0:
-            response["rank"].append(temp)
+            response.append(temp)
         
-    if len(response["rank"])==0:
+    if len(response)==0:
         return "all cosine is 0"
-    response["rank"] = response["rank"][:int(num) if (num!="" and int(num)<len(response["rank"])) else len(response["rank"])]
+    response = response[:int(num) if (num!="" and int(num)<len(response)) else len(response)]
     
     
     return response
@@ -293,6 +293,7 @@ def get_project_info(pro_name, repo_list, r):
         return None
     
     match = 0
+    
     for repo in repo_list:
         if repo in source["allRepo"]:
             match+=1
