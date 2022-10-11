@@ -223,14 +223,22 @@ def consine_rank_to_rank(cosine_rank, num):
     return response
 
 # 處理 range 後面是:*的
-def get_all_range_branch(branch_range):
+def get_all_range_branch(pro_name, branch_range, r):
     for b in branch_range:
         if b.split(":")[-1] == "*":
             branch_range.remove(b)
             info = re.split(',|:', b)
-            result = crawler.get_branches(info[0], info[1])
-            for r in result:
-                branch_range.append(f"{info[0]},{info[1]}:{r}")
+            
+            data = r.get(pro_name)
+            if data == None:
+                return None
+            source = json.loads(data)
+            if source["allRepo"] == None:
+                return None
+            
+            for r in source["allRepo"]:
+                if re.split(',|:', r)[0] == info[0] and re.split(',|:', r)[1]==info[1]:
+                    branch_range.append(r)
     return branch_range
 
 
@@ -238,14 +246,14 @@ def get_all_range_branch(branch_range):
 def get_word_vector_and_rank(request):
     time_start = time.time() #開始計時
     
-    request["range"] = get_all_range_branch(request["range"])
-    
     r = redis.Redis(host='localhost', port=6379, decode_responses=True)
     
+    request["range"] = get_all_range_branch(request["projectName"], request["range"], r)
     pro_info = get_project_info(request["projectName"], request["range"], r)
     if pro_info == None:
         return {"status": "search failed", "rank": {}}
     
+    print("first")
     #先算跟 corpus 相關的
     search_data = get_tf_score(request["keywords"])
     corpus_term_temp = merge_dict(pro_info["corpusTerm"], search_data["term_in_corpus"])
@@ -294,11 +302,14 @@ def get_project_info(pro_name, repo_list, r):
     
     match = 0
     
+    print(source["allRepo"])
     for repo in repo_list:
+        print(f"repo: {repo}")
         if repo in source["allRepo"]:
             match+=1
         else:
             break
+    print(f"match: {match}, length: {len(repo_list)}")
     if match == len(repo_list):
         return {"corpusTerm" : source["corpusTerm"],
                 "corpusTermNum" : source["corpusTermNum"]}

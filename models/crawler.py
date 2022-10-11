@@ -32,6 +32,7 @@ def get_branches(userName, repoName):
         branches.remove("main")
         branches.insert(0, "main")
     
+    print(f"branch 總數: {len(branches)}")
     return branches
 
 # 拿到 commit 紀錄，變成 create API request 的格式（自己測試用）
