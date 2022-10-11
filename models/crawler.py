@@ -20,7 +20,7 @@ def get_branches(userName, repoName):
     # 使用 GET 方式呼叫 GitHub API，拿到所有 branch
     r = requests.get(get_branch_url)
     if r.status_code!=requests.codes.ok:
-        return f"{r.status_code}獲取 API 失敗！"
+        return f"failed"
     response = json.loads(r.text) # str to json
     
     branches = []
@@ -31,6 +31,7 @@ def get_branches(userName, repoName):
     if "main" in branches:
         branches.remove("main")
         branches.insert(0, "main")
+    
     return branches
 
 # 拿到 commit 紀錄，變成 create API request 的格式（自己測試用）
@@ -44,6 +45,8 @@ def get_commit_history(request):
         commit_data[pro_name] = {} #處理回傳值
         for repo in request[pro_name]: #一個repo
             branches = get_branches(repo["userName"], repo["repoName"])
+            if branches == "failed":
+                return {"status": "crawler failed", "data": {}}
             total = 0
             flag = True
             shas = []
@@ -88,6 +91,6 @@ def get_commit_history(request):
     time_end = time.time()    #結束計時
 
     print(f"花費時間: {time_end - time_start}秒")
-    return commit_data
+    return {"status": "crawler completed", "data": commit_data}
     
 # -------------- [GET] 拿到 commit 資訊 - END -------------- #
