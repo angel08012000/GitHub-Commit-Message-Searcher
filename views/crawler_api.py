@@ -13,10 +13,11 @@ import requests
 
 
 crawler_api=Blueprint('crawler_api', __name__)
-
+'''
 @crawler_api.route('/commit', methods=['POST'])
 def get_commit_api():
     req = request.get_json()
     res = crawler.get_commit_history(req)
     
     return jsonify(res)
+'''

@@ -14,10 +14,10 @@ import requests
 
 bridge_api=Blueprint('bridge_api', __name__)
 
-@bridge_api.route("/create_commits", methods=['POST'])
+@bridge_api.route("/fetch_project_github_data", methods=['POST'])
 def get_commit_and_create_api():
     req = request.get_json()
     temp = crawler.get_commit_history(req)
-    res = database.get_dbformat_data(temp["data"])
+    res = database.get_dbformat_data(temp)
     
     return jsonify(res)
