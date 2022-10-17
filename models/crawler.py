@@ -39,12 +39,14 @@ def get_branches(userName, repoName):
 def get_commit_history(request):
     time_start = time.time() #開始計時
     
-    commit_data = {} #處理回傳值
-    for pro_name in request: #一個專案
+    for pro in request["allProjects"]: #一個專案
+        pro_name = pro["projectName"]
         print("+--------------------+")
         print(f"專案名稱: {pro_name}")
-        commit_data[pro_name] = {} #處理回傳值
-        for repo in request[pro_name]: #一個repo
+        data = []
+        commit_data = {"projectName": pro_name,
+                       "branches" : []} #處理回傳值
+        for repo in pro["repoNames"]: #一個repo
             branches = get_branches(repo["userName"], repo["repoName"])
             if branches == "failed":
                 return {"status": "crawler failed", "data": {}}
@@ -87,11 +89,14 @@ def get_commit_history(request):
                         flag = False
                 
                 if temp != []:
-                    commit_data[pro_name][f'{repo["userName"]},{repo["repoName"]}:{branch}'] = temp #處理回傳值
+                    commit_data["branches"].append({"branchName": f'{repo["userName"]},{repo["repoName"]}:{branch}',
+                                                    "commit": temp})
+                    #commit_data[pro_name][f'{repo["userName"]},{repo["repoName"]}:{branch}'] = temp #處理回傳值
+            data.append(commit_data)
             print(f"總共有{total}筆 commit")
     time_end = time.time()    #結束計時
 
     print(f"花費時間: {time_end - time_start}秒")
-    return {"status": "crawler completed", "data": commit_data}
+    return {"status": "crawler completed", "data": data}
     
 # -------------- [GET] 拿到 commit 資訊 - END -------------- #

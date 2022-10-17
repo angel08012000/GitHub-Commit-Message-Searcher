@@ -14,12 +14,14 @@ import requests
 
 database_api=Blueprint('database_api', __name__)
 
+'''
 @database_api.route("/create", methods=['POST'])
 def create_commit_data_api():
     req = request.get_json()
     res = database.get_dbformat_data(req)
     
     return jsonify(res)
+'''
 
 @database_api.route("/search", methods=['POST'])
 def search_commit_api():

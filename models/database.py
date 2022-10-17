@@ -133,18 +133,18 @@ def get_dbformat_data(request):
     #project_data['num'] += 1
     
     try:
-        for pro in request:
+        for pro in request["data"]:
             pro_info = {"allRepo" : [],
                         "corpusTerm" : {},
                         "corpusTermNum" : 0}
-            for repo in request[pro]:
-                pro_info["allRepo"].append(repo)
+            for b in pro["branches"]:
+                pro_info["allRepo"].append(b["branchName"])
                 #要存到 DB 的 data
                 data = {"documents" : [],
                         "project" : pro }
                 
                 #計算 tf 分數
-                for commit in request[pro][repo]:
+                for commit in b["commit"]:
                     result = get_tf_score(commit["message"])
                     
                     temp = {"id": commit["id"],
@@ -154,11 +154,11 @@ def get_dbformat_data(request):
                     
                     pro_info["corpusTermNum"] += result["termnum_in_corpus"]
                     pro_info["corpusTerm"] = merge_dict(pro_info["corpusTerm"], result["term_in_corpus"])
-                res = create_to_db(repo, data, r)
+                res = create_to_db(b["branchName"], data, r)
                 if res!="ok":
                     return res
         
-            create_to_db(pro, pro_info, r)
+            create_to_db(pro["projectName"], pro_info, r)
         time_end = time.time() #結束計時
         print(f"花費時間: {time_end - time_start}秒")
         return {"status": "indexing completed"}
