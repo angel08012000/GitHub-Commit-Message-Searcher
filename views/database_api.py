@@ -23,7 +23,7 @@ def create_commit_data_api():
     return jsonify(res)
 '''
 
-@database_api.route("/search", methods=['POST'])
+@database_api.route("/retrieval", methods=['POST'])
 def search_commit_api():
     req = request.get_json()
 
@@ -34,7 +34,7 @@ def get_redis_data():
     
     return jsonify(database.get_all_redis_data())
 
-@database_api.route("/delete/all", methods=['DELETE'])
+@database_api.route("/clear", methods=['DELETE'])
 def delete_all_data_api():
     
     return jsonify(database.delete_all_data())

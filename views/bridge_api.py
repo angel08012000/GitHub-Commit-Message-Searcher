@@ -14,7 +14,7 @@ import requests
 
 bridge_api=Blueprint('bridge_api', __name__)
 
-@bridge_api.route("/fetch_project_github_data", methods=['POST'])
+@bridge_api.route("/register", methods=['POST'])
 def get_commit_and_create_api():
     req = request.get_json()
     temp = crawler.get_commit_history(req)
