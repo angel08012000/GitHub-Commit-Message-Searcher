@@ -11,6 +11,7 @@ from flask import render_template
 from views import register_blueprint
 from flask_cors import CORS
 import models
+import redis
 
 def create_app():
     app = Flask(__name__)

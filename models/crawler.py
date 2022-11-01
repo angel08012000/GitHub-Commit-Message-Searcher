@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 import time
 
 # -------------- [GET] 拿到 commit 資訊 - START -------------- #
+    
 
 def get_branches(userName, repoName):
     get_branch_url = f'https://api.github.com/repos/{userName}/{repoName}/branches'

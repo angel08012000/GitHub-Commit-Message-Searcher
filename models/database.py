@@ -6,7 +6,7 @@ Created on Tue Oct 11 00:38:53 2022
 @author: cihcih
 """
 
-from models import crawler
+#from models import crawler
 
 import requests, json
 #from flask import Flask, request, jsonify
@@ -14,6 +14,16 @@ import requests, json
 import redis
 # 英文斷詞＆詞性還原
 import nltk
+import ssl
+import copy
+
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
 nltk.download('averaged_perceptron_tagger')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
@@ -129,9 +139,6 @@ def get_dbformat_data(request):
     time_start = time.time() #開始計時
     r = redis.Redis(host='localhost', port=6379, decode_responses=True) 
     
-    #project_data = get_project(r)
-    #project_data['num'] += 1
-    
     try:
         for pro in request["data"]:
             pro_info = {"allRepo" : [],
@@ -154,36 +161,71 @@ def get_dbformat_data(request):
                     
                     pro_info["corpusTermNum"] += result["termnum_in_corpus"]
                     pro_info["corpusTerm"] = merge_dict(pro_info["corpusTerm"], result["term_in_corpus"])
+                print("要存資料了啦")
                 res = create_to_db(b["branchName"], data, r)
-                if res!="ok":
+                if res["status"]!="ok":
                     return res
         
             create_to_db(pro["projectName"], pro_info, r)
+        
         time_end = time.time() #結束計時
         print(f"花費時間: {time_end - time_start}秒")
         return {"status": "indexing completed"}
     except:
         return {"status": "indexing failed"}
 
-# 把計算完的資料存到 database 裡
+# 把計算完的資料存到 database 裡（直接蓋掉）
 def create_to_db(key, value, r):
     try:
         json_data = json.dumps(value)
         r.set(key, json_data)
-        #json.loads(r.get(key))
+        # json.loads(r.get(key))
     except:
-        return f"key [{key}] create failed"
-    return "ok"
+        return {"status" : f"key [{key}] create failed"}
+    return {"status": "ok"}
 
-def get_project(r):
-    project_data = r.get('projectData')
+
+# 把資料加到 database 的陣列裡（紀錄所有的project）
+def append_to_db(res):
     
-    if project_data != None:
-        return json.loads(project_data)
-    return {"projects":[],
-            "num" : 0}
+    key = "allProjects"
+    value = []
+    r = redis.Redis(host='localhost', port=6379, decode_responses=True) 
+    
+    try:
+        all_pro_info = r.get(key)
+        if all_pro_info == None:
+            value = res["allProjects"]
+        else:
+            value = json.loads(all_pro_info)
+            for one_project in res["allProjects"]:
+                find = False
+                for p in value:
+                    if p["projectName"] == one_project["projectName"]:
+                        p["repoNames"] = one_project["repoNames"]
+                        find = True
+                        break
+                if (not find):
+                    value.append(one_project)
+                    
+        r.set(key, json.dumps(value))
+    except:
+        return {"status": "indexing failed"}
+    return {"status": "indexing completed"}
+    
 
 # -------------- [Create] 建立詞向量，並儲存至 DB - END -------------- #
+
+# -------------- [Read] 輸入關鍵字，回傳排行 - START -------------- #
+def get_project_branches(project_name):
+    try: 
+        r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+        branches = json.loads(r.get(project_name))["allRepo"]
+        return {"status": "geting project branches completed",
+                "branches": branches}
+    except:
+        return {"status": "geting project branches failed"}
+# -------------- [Read] 輸入關鍵字，回傳排行 - END -------------- #
 
 
 # -------------- [Read] 輸入關鍵字，回傳排行 - START -------------- #
@@ -224,7 +266,8 @@ def consine_rank_to_rank(cosine_rank, num):
 
 # 處理 range 後面是:*的
 def get_all_range_branch(pro_name, branch_range, r):
-    for b in branch_range:
+    branch_range_copy = copy.deepcopy(branch_range)
+    for b in branch_range_copy:
         if b.split(":")[-1] == "*":
             branch_range.remove(b)
             info = re.split(',|:', b)
@@ -236,9 +279,10 @@ def get_all_range_branch(pro_name, branch_range, r):
             if source["allRepo"] == None:
                 return None
             
-            for r in source["allRepo"]:
-                if re.split(',|:', r)[0] == info[0] and re.split(',|:', r)[1]==info[1]:
-                    branch_range.append(r)
+            for repo in source["allRepo"]:
+                if re.split(',|:', repo)[0] == info[0] and re.split(',|:', repo)[1]==info[1]:
+                    branch_range.append(repo)
+            
     return branch_range
 
 
@@ -304,7 +348,6 @@ def get_project_info(pro_name, repo_list, r):
     
     print(source["allRepo"])
     for repo in repo_list:
-        print(f"repo: {repo}")
         if repo in source["allRepo"]:
             match+=1
         else:
@@ -316,9 +359,6 @@ def get_project_info(pro_name, repo_list, r):
     return None
 
 # -------------- [Read] 輸入關鍵字，回傳排行 - END -------------- #
-
-
-
 
 # -------------- [Read] 讀取 DB - START -------------- #
 
@@ -363,7 +403,6 @@ def delete_project(request):
     except:
         return "deleting failed"
 
-
 def delete_all_data():
     try:
         r = redis.Redis(host='localhost', port=6379, decode_responses=True)
@@ -374,5 +413,3 @@ def delete_all_data():
         return {"status": "deleting failed"}
 
 # -------------- [Delete] 刪除 repository - END -------------- #
-    
-    
