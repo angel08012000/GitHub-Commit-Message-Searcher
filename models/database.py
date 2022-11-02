@@ -161,7 +161,6 @@ def get_dbformat_data(request):
                     
                     pro_info["corpusTermNum"] += result["termnum_in_corpus"]
                     pro_info["corpusTerm"] = merge_dict(pro_info["corpusTerm"], result["term_in_corpus"])
-                print("要存資料了啦")
                 res = create_to_db(b["branchName"], data, r)
                 if res["status"]!="ok":
                     return res
@@ -170,9 +169,9 @@ def get_dbformat_data(request):
         
         time_end = time.time() #結束計時
         print(f"花費時間: {time_end - time_start}秒")
-        return {"status": "indexing completed"}
+        return {"status": "getting completed"}
     except:
-        return {"status": "indexing failed"}
+        return {"status": "getting failed"}
 
 # 把計算完的資料存到 database 裡（直接蓋掉）
 def create_to_db(key, value, r):
@@ -183,7 +182,6 @@ def create_to_db(key, value, r):
     except:
         return {"status" : f"key [{key}] create failed"}
     return {"status": "ok"}
-
 
 # 把資料加到 database 的陣列裡（紀錄所有的project）
 def append_to_db(res):
