@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 
 # .rdb檔案
-.rdb
+dump.rdb
