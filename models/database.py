@@ -264,22 +264,25 @@ def consine_rank_to_rank(cosine_rank, num):
 
 # 處理 range 後面是:*的
 def get_all_range_branch(pro_name, branch_range, r):
-    branch_range_copy = copy.deepcopy(branch_range)
-    for b in branch_range_copy:
-        if b.split(":")[-1] == "*":
-            branch_range.remove(b)
-            info = re.split(',|:', b)
-            
-            data = r.get(pro_name)
-            if data == None:
-                return None
-            source = json.loads(data)
-            if source["allRepo"] == None:
-                return None
-            
-            for repo in source["allRepo"]:
-                if re.split(',|:', repo)[0] == info[0] and re.split(',|:', repo)[1]==info[1]:
-                    branch_range.append(repo)
+    if branch_range == ["*:*"]:
+        branch_range = get_project_branches(pro_name)["branches"]
+    else:
+        branch_range_copy = copy.deepcopy(branch_range)
+        for b in branch_range_copy:
+            if b.split(":")[-1] == "*":
+                branch_range.remove(b)
+                info = re.split(',|:', b)
+                
+                data = r.get(pro_name)
+                if data == None:
+                    return None
+                source = json.loads(data)
+                if source["allRepo"] == None:
+                    return None
+                
+                for repo in source["allRepo"]:
+                    if re.split(',|:', repo)[0] == info[0] and re.split(',|:', repo)[1]==info[1]:
+                        branch_range.append(repo)
             
     return branch_range
 
@@ -291,6 +294,7 @@ def get_word_vector_and_rank(request):
     r = redis.Redis(host='localhost', port=6379, decode_responses=True)
     
     request["range"] = get_all_range_branch(request["projectName"], request["range"], r)
+    print(f'要查的: {request["range"]}')
     pro_info = get_project_info(request["projectName"], request["range"], r)
     if pro_info == None:
         return {"status": "search failed", "rank": {}}

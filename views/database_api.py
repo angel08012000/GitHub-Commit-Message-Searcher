@@ -45,7 +45,6 @@ def search_commit_api():
 @database_api.route("/getbranches", methods=['GET'])
 def get_branches():
     project_name = request.args.get('project')
-    print("getproject brances")
     return jsonify(database.get_project_branches(project_name))
 
 @database_api.route("/getredis", methods=['GET'])
