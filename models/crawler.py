@@ -28,7 +28,11 @@ def get_branches(userName, repoName):
     for b in response:
         if b["name"] not in branches:
             branches.append(b["name"])
-            
+    
+    if "master" in branches:
+        branches.remove("master")
+        branches.insert(0, "master")
+    
     if "main" in branches:
         branches.remove("main")
         branches.insert(0, "main")
@@ -68,6 +72,7 @@ def get_commit_history(request):
                     for c in commit:
                         summary = c.find_all("a", class_="Link--primary text-bold js-navigation-open markdown-title")[-1]
                         sha = summary.get("href").split('/')[-1]
+                        # 如果有同樣的 sha 就只存一次就好
                         if sha in shas:
                             continue
                         shas.append(sha)
