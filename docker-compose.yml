@@ -1,0 +1,203 @@
+version: '3.0'
+
+services:
+
+# GROUP_01==============================================================================
+
+  github-commit-message-searcher-01:
+    image: tabot/github-commit-message-searcher:v0.1
+    container_name: tabot-github-commit-message-searcher-01
+    restart: always
+    networks: ['tabot']
+    ports:
+      - "10001:8082"
+    depends_on:
+      - redis-01
+    command:
+      - python 
+      - main.py
+    environment:
+    - GROUP_REDIS=tabot-redis-01
+
+
+  redis-01:
+    image: redis:7.0.4
+    container_name: tabot-redis-01
+    restart: always
+    networks: ["tabot"]
+    volumes:
+    - .redis/group_01/data:/data
+    - .redis/group_01/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+# GROUP_02==============================================================================
+
+  github-commit-message-searcher-02:
+    image: tabot/github-commit-message-searcher:v0.1
+    container_name: tabot-github-commit-message-searcher-02
+    restart: always
+    networks: ['tabot']
+    ports:
+      - "10002:8082"
+    depends_on:
+      - redis-02
+    command:
+      - python 
+      - main.py
+    environment:
+    - GROUP_REDIS=tabot-redis-02
+
+
+  redis-02:
+    image: redis:7.0.4
+    container_name: tabot-redis-02
+    restart: always
+    networks: ["tabot"]
+    volumes:
+    - .redis/group_02/data:/data
+    - .redis/group_02/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+# GROUP_03==============================================================================
+
+  github-commit-message-searcher-03:
+    image: tabot/github-commit-message-searcher:v0.1
+    container_name: tabot-github-commit-message-searcher-03
+    restart: always
+    networks: ['tabot']
+    ports:
+      - "10003:8082"
+    depends_on:
+      - redis-03
+    command:
+      - python 
+      - main.py
+    environment:
+    - GROUP_REDIS=tabot-redis-03
+
+
+  redis-03:
+    image: redis:7.0.4
+    container_name: tabot-redis-03
+    restart: always
+    networks: ["tabot"]
+    volumes:
+    - .redis/group_03/data:/data
+    - .redis/group_03/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+# GROUP_04==============================================================================
+
+  github-commit-message-searcher-04:
+    image: tabot/github-commit-message-searcher:v0.1
+    container_name: tabot-github-commit-message-searcher-04
+    restart: always
+    networks: ['tabot']
+    ports:
+      - "10004:8082"
+    depends_on:
+      - redis-04
+    command:
+      - python 
+      - main.py
+    environment:
+    - GROUP_REDIS=tabot-redis-04
+
+
+  redis-04:
+    image: redis:7.0.4
+    container_name: tabot-redis-04
+    restart: always
+    networks: ["tabot"]
+    volumes:
+    - .redis/group_04/data:/data
+    - .redis/group_04/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+# GROUP_05==============================================================================
+
+  github-commit-message-searcher-05:
+    image: tabot/github-commit-message-searcher:v0.1
+    container_name: tabot-github-commit-message-searcher-05
+    restart: always
+    networks: ['tabot']
+    ports:
+      - "10005:8082"
+    depends_on:
+      - redis-05
+    command:
+      - python 
+      - main.py
+    environment:
+    - GROUP_REDIS=tabot-redis-05
+
+
+  redis-05:
+    image: redis:7.0.4
+    container_name: tabot-redis-05
+    restart: always
+    networks: ["tabot"]
+    volumes:
+    - .redis/group_05/data:/data
+    - .redis/group_05/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+# GROUP_06==============================================================================
+
+  github-commit-message-searcher-06:
+    image: tabot/github-commit-message-searcher:v0.1
+    container_name: tabot-github-commit-message-searcher-06
+    restart: always
+    networks: ['tabot']
+    ports:
+      - "10006:8082"
+    depends_on:
+      - redis-06
+    command:
+      - python 
+      - main.py
+    environment:
+    - GROUP_REDIS=tabot-redis-06
+
+
+  redis-06:
+    image: redis:7.0.4
+    container_name: tabot-redis-06
+    restart: always
+    networks: ["tabot"]
+    volumes:
+    - .redis/group_06/data:/data
+    - .redis/group_06/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+# GROUP_OTHER==============================================================================
+
+  github-commit-message-searcher-other:
+    image: tabot/github-commit-message-searcher:v0.1
+    container_name: tabot-github-commit-message-searcher-other
+    restart: always
+    networks: ['tabot']
+    ports:
+      - "10007:8082"
+    depends_on:
+      - redis-other
+    command:
+      - python 
+      - main.py
+    environment:
+    - GROUP_REDIS=tabot-redis-other
+
+
+  redis-other:
+    image: redis:7.0.4
+    container_name: tabot-redis-other
+    restart: always
+    networks: ["tabot"]
+    volumes:
+    - .redis/group_other/data:/data
+    - .redis/group_other/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+networks:
+  tabot:
+    name: tabot

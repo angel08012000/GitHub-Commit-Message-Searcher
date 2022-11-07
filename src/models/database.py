@@ -6,6 +6,9 @@ Created on Tue Oct 11 00:38:53 2022
 @author: cihcih
 """
 
+import os
+GROUP_REDIS = os.environ.get("GROUP_REDIS")
+
 import json
 #from flask import Flask, request, jsonify
 
@@ -138,7 +141,7 @@ def merge_dict(d1, d2):
 # 算 tf分數，並把所需的東西都轉成要存進 db 的格式
 def get_dbformat_data(request):
     time_start = time.time() #開始計時
-    r = redis.Redis(host='localhost', port=6379, decode_responses=True) 
+    r = redis.Redis(host=GROUP_REDIS, port=6379, decode_responses=True) 
     
     try:
         for pro in request["data"]:
@@ -189,7 +192,7 @@ def append_to_db(res):
     
     key = "allProjects"
     value = []
-    r = redis.Redis(host='localhost', port=6379, decode_responses=True) 
+    r = redis.Redis(host=GROUP_REDIS, port=6379, decode_responses=True) 
     
     try:
         all_pro_info = r.get(key)
@@ -218,7 +221,7 @@ def append_to_db(res):
 # -------------- [Read] 輸入關鍵字，回傳排行 - START -------------- #
 def get_project_branches(project_name):
     try: 
-        r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+        r = redis.Redis(host=GROUP_REDIS, port=6379, decode_responses=True)
         branches = json.loads(r.get(project_name))["allRepo"]
         return {"status": "geting project branches completed",
                 "branches": branches}
@@ -303,7 +306,7 @@ def get_all_range_branch(pro_name, branch_range, r):
 def get_word_vector_and_rank(request):
     time_start = time.time() #開始計時
     
-    r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+    r = redis.Redis(host=GROUP_REDIS, port=6379, decode_responses=True)
     
     request["range"] = get_all_range_branch(request["projectName"], request["range"], r)
     print(f'要查的: {request["range"]}')
@@ -379,7 +382,7 @@ def get_project_info(pro_name, repo_list, r):
 def get_all_redis_data():
     data = []
     try:
-        r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+        r = redis.Redis(host=GROUP_REDIS, port=6379, decode_responses=True)
         for element in r.keys():
             data.append({element: json.loads(r.get(element))})
         return data
@@ -394,7 +397,7 @@ def delete_project(request):
     
     try:
         delete = False
-        r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+        r = redis.Redis(host=GROUP_REDIS, port=6379, decode_responses=True)
         pros = r.get("projectData")
         if pros == None:
             return "project data is empty!"
@@ -419,7 +422,7 @@ def delete_project(request):
 
 def delete_all_data():
     try:
-        r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+        r = redis.Redis(host=GROUP_REDIS, port=6379, decode_responses=True)
         for element in r.keys():
             r.delete(element)
         return {"status": "deleting completed"}
