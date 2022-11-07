@@ -6,9 +6,7 @@ Created on Tue Oct 11 00:38:53 2022
 @author: cihcih
 """
 
-#from models import crawler
-
-import requests, json
+import json
 #from flask import Flask, request, jsonify
 
 import redis
@@ -45,6 +43,9 @@ import numpy as np
 from numpy import dot
 from numpy.linalg import norm
 import re
+
+import spacy
+nlp = spacy.load("en_core_web_md")
 
 # -------------- [Create] 建立詞向量，並儲存至 DB - START -------------- #
 
@@ -228,8 +229,14 @@ def get_project_branches(project_name):
 
 # -------------- [Read] 輸入關鍵字，回傳排行 - START -------------- #
 
+# 用 spaCy 比較文本相似度
+def spacy_similarity(doc1, doc2):
+    ndoc1 = nlp(doc1)
+    ndoc2 = nlp(doc2)
+    return ndoc1.similarity(ndoc2)
+
 # 計算 cosine 相似度並排名，參數為 commit_data 是因為需要 sha
-def get_cosine_rank(search_vector, commit_data):
+def get_cosine_rank(search_vector, commit_data, keyword):
     cosine_rank = []
     
     for commit in commit_data:
@@ -237,7 +244,13 @@ def get_cosine_rank(search_vector, commit_data):
         temp["id"] = commit["id"]
         temp["message"] = commit["message"]
         temp["repo"] = commit["repo"]
-        temp["cosine"] = dot(search_vector, commit["wordVector"])/(norm(search_vector)*norm(commit["wordVector"]))
+
+        #0.7 tf-iwf + 0.3 spaCy
+        temp["cosine"] = (0.7*(dot(search_vector, commit["wordVector"])/(norm(search_vector)*norm(commit["wordVector"])))) + (0.3*(spacy_similarity(commit["message"], keyword)))
+        #全部tf-iwf
+        #temp["cosine"] = dot(search_vector, commit["wordVector"])/(norm(search_vector)*norm(commit["wordVector"]))
+        #全部spaCy
+        #temp["cosine"] = spacy_similarity(commit["message"], keyword)
         cosine_rank.append(temp)
     cosine_rank = sorted(cosine_rank, key=lambda d: d['cosine'], reverse=True)
     return cosine_rank
@@ -286,7 +299,6 @@ def get_all_range_branch(pro_name, branch_range, r):
             
     return branch_range
 
-
 # 重新計算 corpus 相關資料，並計算 word vector
 def get_word_vector_and_rank(request):
     time_start = time.time() #開始計時
@@ -332,7 +344,7 @@ def get_word_vector_and_rank(request):
             search_data["wordVector"].append(0)
     
     #比較 cosine 相似度
-    cosine_rank = get_cosine_rank(search_data["wordVector"], history)
+    cosine_rank = get_cosine_rank(search_data["wordVector"], history, request["keywords"])
     
     time_end = time.time() #結束計時
     print(f"花費時間: {time_end - time_start}秒")
