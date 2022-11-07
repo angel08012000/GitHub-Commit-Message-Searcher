@@ -85,8 +85,8 @@ def pre_process(sentence):
         
     #去除停用詞
     stop_words = stopwords.words('english')
-    stop_words += ['.', ',', '[', ']', '{', '}', ':'] # 加上我認為的 英文
-    stop_words += ['，','。', '「', '」', '！', '？'] # 加上我認為的 中文
+    stop_words += ['.', ',', '[', ']', '{', '}', ':', '(', ')', '`', "'", '"', '……'] # 加上我認為的 英文
+    stop_words += ['，','。', '「', '」', '！', '？', '（', '）', '：'] # 加上我認為的 中文
     word = [word for word in token_ch if word not in stop_words]
     
     return word
