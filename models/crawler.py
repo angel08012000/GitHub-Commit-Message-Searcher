@@ -78,6 +78,8 @@ def get_commit_history(request):
                         shas.append(sha)
                         detail = c.find_all("pre", class_="text-small ws-pre-wrap")
                         commit_text = summary.getText() + ("" if detail==[] else detail[0].getText())
+                        # 有些 commit 太長，GitHub會用…連接
+                        commit_text = ''.join( x for x in commit_text if x!="…")
                         temp.append({"id": sha, "message": commit_text})
                         print(sha)
                         print(commit_text)
