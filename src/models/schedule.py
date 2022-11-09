@@ -43,7 +43,7 @@ def do_job():
 def start_schedule():
     try:
         scheduler = BackgroundScheduler(timezone='Asia/Taipei')
-        scheduler.add_job(do_job, 'cron', day_of_week='0-6', hour=8, minute=0, id="schedule_crawler")
+        scheduler.add_job(do_job, 'cron', day_of_week='0-6', hour='0-23', minute=0, id="schedule_crawler")
         scheduler.start()
     except:
         return {"status": "scheduler creating failed"}
